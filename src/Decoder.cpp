@@ -32,7 +32,6 @@ bool checkFile(std::string&& filename) {
 bool decodeFile(std::string&& filename) {
 	using namespace std;
 
-	//create copy of input file
 	string filename_out(filename.begin(), filename.end() - 4);
 	filename_out += "_decoded.o3d";
 
@@ -64,11 +63,15 @@ bool decodeFile(std::string&& filename) {
 	bool o3d_has_product_id;
 	uint16_t product_id_salt;
 
-	if (file_version < 4) {
+	if (file_version < 4)
 		o3d_has_product_id = 0;
-	}
 	else {
 		o3d_file.read((char*)(&mesh.product_id), 4);
+
+		if (mesh.product_id == 0xFFFFFFFF) {
+			cout << "This modes is not encrypted!" << endl;
+			return false;
+		}
 
 		if (mesh.product_id == 0xFFFF)
 			o3d_has_product_id = false;	
@@ -92,36 +95,67 @@ bool decodeFile(std::string&& filename) {
 		mesh.product_id = 0;
 	}
 
-	std::uint8_t data_type;
-	o3d_file.read((char*)(&data_type), 1);
+	uint8_t data_type;
+	uint32_t data_count;
+	bool l_flag = true;
 
-	switch (data_type)
-	{
-	case 0x17: {
-		std::uint32_t l_buff = product_id_salt + 0x02;
-		if (l_buff > 0xFFFF) {
-			cout << "OUT OF RANGE VERTICES" << endl;
-			return false;
-		}
+	uint32_t vertex_section;
 
-		product_id_salt = l_buff;
+	while (l_flag && !o3d_file.eof()) {
+		o3d_file.read((char*)(&data_type), 1);
+		uint32_t l_buff = 0;
 
 		if (file_version >= 3)
-			o3d_file.read((char*)(&mesh.num_vertices), 4);
+			o3d_file.read((char*)(&data_count), 4);
 		else
-			o3d_file.read((char*)(&mesh.num_vertices), 2);
+			o3d_file.read((char*)(&data_count), 2);
 
-		if (mesh.num_vertices < 0) {
-			cout << "UNCORRECT NUM OF VERTICES!" << endl;
-			return false;
+		switch (data_type)
+		{
+			case O3D_DATA_TYPES::VERTEX:
+				l_buff = product_id_salt + 0x02;
+				if (l_buff > 0xFFFF) {
+					cout << "OUT OF RANGE VERTICES" << endl;
+					return false;
+				}
+
+				product_id_salt = l_buff;
+
+				if (data_count < 0) {
+					cout << "UNCORRECT NUM OF VERTICES!" << endl;
+					return false;
+				}
+
+				vertex_section = o3d_file.tellg();
+				l_flag = false;
+				break;
+
+			case O3D_DATA_TYPES::MATERIALS:
+				o3d_file.seekg(data_count * sizeof(O3D_Materials), ios::cur);
+				break;
+
+			case O3D_DATA_TYPES::TRIS:
+				if(mesh.has_long_tris)
+					o3d_file.seekg(data_count * sizeof(O3D_Tris_Long), ios::cur);
+				else
+					o3d_file.seekg(data_count * sizeof(O3D_Tris_Short), ios::cur);
+				
+				break;
+
+			case O3D_DATA_TYPES::BONES:
+				o3d_file.seekg(data_count * sizeof(O3D_Bones), ios::cur);
+				break;
+
+			case O3D_DATA_TYPES::TRANSFORM:
+				o3d_file.seekg(data_count * sizeof(O3D_Transform), ios::cur);
+				break;
+
+			default:
+				break;
 		}
-
-		break;
-	}
-	default:
-		break;
 	}
 
+	mesh.num_vertices = data_count;
 	unique_ptr<O3D_Vertex[]> readVertices(new O3D_Vertex[mesh.num_vertices]);
 
 	mesh.num_vertices %= 65000;
@@ -131,15 +165,7 @@ bool decodeFile(std::string&& filename) {
 
 	//read O3D_Vertex
 	do {
-		//try to simplify o3d_file.read((char*)(&readVertices[vert_index]), sizeof(O3D_Vertex))
-		o3d_file.read((char*)(&readVertices[vert_index].position.x), 4);
-		o3d_file.read((char*)(&readVertices[vert_index].position.y), 4);
-		o3d_file.read((char*)(&readVertices[vert_index].position.z), 4);
-		o3d_file.read((char*)(&readVertices[vert_index].normal.x), 4);
-		o3d_file.read((char*)(&readVertices[vert_index].normal.y), 4);
-		o3d_file.read((char*)(&readVertices[vert_index].normal.z), 4);
-		o3d_file.read((char*)(&readVertices[vert_index].uv.x), 4);
-		o3d_file.read((char*)(&readVertices[vert_index].uv.y), 4);
+		o3d_file.read((char*)(&readVertices[vert_index]), sizeof(O3D_Vertex));
 
 		if (o3d_has_product_id) {
 			if (!mesh.product_id) {
@@ -204,18 +230,10 @@ bool decodeFile(std::string&& filename) {
 	o3d_file.seekp(4, ios::beg);
 	uint32_t decoded_product_id = 0xFFFFFFFF;
 	o3d_file.write(reinterpret_cast<char*>(&decoded_product_id), sizeof(uint32_t));
-	o3d_file.seekp(13, ios::beg);
+	o3d_file.seekp(vertex_section, ios::beg);
 
 	for (size_t i = 0; i < mesh.num_vertices; ++i) {
-		//try to simplify to o3d_file.write((char*)(&readVertices[i]), sizeof(O3D_Vertex))
-		o3d_file.write(reinterpret_cast<char*>(&readVertices[i].position.x), sizeof(float));
-		o3d_file.write(reinterpret_cast<char*>(&readVertices[i].position.y), sizeof(float));
-		o3d_file.write(reinterpret_cast<char*>(&readVertices[i].position.z), sizeof(float));
-		o3d_file.write(reinterpret_cast<char*>(&readVertices[i].normal.x), sizeof(float));
-		o3d_file.write(reinterpret_cast<char*>(&readVertices[i].normal.y), sizeof(float));
-		o3d_file.write(reinterpret_cast<char*>(&readVertices[i].normal.z), sizeof(float));
-		o3d_file.write(reinterpret_cast<char*>(&readVertices[i].uv.x), sizeof(float));
-		o3d_file.write(reinterpret_cast<char*>(&readVertices[i].uv.y), sizeof(float));
+		o3d_file.write(reinterpret_cast<char*>(&readVertices[i]), sizeof(O3D_Vertex));
 	}
 }
 

@@ -21,6 +21,17 @@ struct Vector3D {
 	float z;
 };
 
+struct Vector4D {
+	Vector4D() : x(0), y(0), z(0), w(0) {};
+	Vector4D(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {};
+
+	float x;
+	float y;
+	float z;
+
+	float w;
+};
+
 struct O3D_Vertex {
 	Vector3D position;
 	Vector3D normal;
@@ -37,12 +48,38 @@ struct O3D_Materials {
 	std::uintptr_t* texture; //check type
 };
 
-struct O3D_Faces {
-	std::uint32_t a;
-	std::uint32_t b;
-	std::uint32_t c;
+struct O3D_Tris_Long {
+	uint32_t a;
+	uint32_t b;
+	uint32_t c;
+	uint16_t id;
+};
 
-	std::uint16_t d;
+struct O3D_Tris_Short {
+	uint16_t a;
+	uint16_t b;
+	uint16_t c;
+	uint16_t id;
+};
+
+struct O3D_Bones {
+
+};
+
+struct O3D_Transform {
+	Vector4D x;
+	Vector4D y;
+	Vector4D z;
+
+	Vector4D pos;
+};
+
+struct O3D_Faces {
+	std::uint16_t a;
+	std::uint16_t b;
+	std::uint16_t c;
+
+	std::uint16_t material_id;
 };
 
 //check all types
@@ -77,4 +114,12 @@ struct OMSI_AddonItem {
 	std::uint32_t unk2;
 
 	std::uint32_t id_as_int;
+};
+
+enum O3D_DATA_TYPES : std::uint8_t {
+	VERTEX = 0x17,
+	MATERIALS = 0x26,
+	TRIS = 0x49,
+	BONES = 0x54,
+	TRANSFORM = 0x79
 };
