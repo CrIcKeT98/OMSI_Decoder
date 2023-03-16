@@ -1,7 +1,17 @@
-Initial commit
+# OMSI 2 Model decoder
 
-This utility allows you to decode official OMSI 2 models and import the model into the 3D editor (3DS Max or Blender).
+_**All the work done was done solely for the sake of obtaining new knowledge and experience.**_
 
-Usage
+## Improved Skills:
+- **Reverse engineering**
+- **IDA Pro**
+- **C++ Boost**
+- **File serialization**
 
-Pass omsi file .o3d to be decoded to the command line
+This utility allows you to decode the official models of the game OMSI 2, which were previously unavailable. The decoded model can then be imported into 3D editors (3DS Max or Blender) using custom plugins.
+# Usage
+Put the file path via the command line:
+```
+OMSI_Decoder.exe --p <some_path/filename>.o3d
+```
+Output decoded model will appear with the name `filename_decoded.o3d` next to the input file.
