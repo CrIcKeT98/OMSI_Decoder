@@ -1,6 +1,6 @@
 #include "Decoder.h"
 
-bool checkFile(std::string&& filename) {
+bool checkFile(std::string& filename) {
 	using namespace std;
 
 	ifstream in_file(filename, ios_base::binary);
@@ -29,7 +29,7 @@ bool checkFile(std::string&& filename) {
 	return true;
 }
 
-bool decodeFile(std::string&& filename) {
+bool decodeFile(std::string& filename) {
 	using namespace std;
 
 	string filename_out(filename.begin(), filename.end() - 4);
@@ -49,9 +49,9 @@ bool decodeFile(std::string&& filename) {
 	uint8_t file_version;
 	o3d_file.read((char*)(&file_version), 1);
 
-	if (file_version < 3) {
-		mesh.has_long_tris = false;
-		mesh.has_encryption = false;
+	if (file_version < 4) {
+		cout << "This files is not encrypted!" << endl;
+		return false;
 	}
 	else {
 		uint8_t buff;
@@ -63,26 +63,23 @@ bool decodeFile(std::string&& filename) {
 	bool o3d_has_product_id;
 	uint16_t product_id_salt;
 
-	if (file_version < 4)
-		o3d_has_product_id = 0;
-	else {
-		o3d_file.read((char*)(&mesh.product_id), 4);
+	o3d_file.read((char*)(&mesh.product_id), 4);
 
-		if (mesh.product_id == 0xFFFFFFFF) {
-			cout << "This modes is not encrypted!" << endl;
-			return false;
-		}
-
-		if (mesh.product_id == 0xFFFF)
-			o3d_has_product_id = false;	
-		else
-			o3d_has_product_id = true;
-		
-		if (o3d_has_product_id)
-			product_id_salt = mesh.product_id + file_version - 4;
-		else
-			product_id_salt = mesh.product_id;
+	if (mesh.product_id == 0xFFFFFFFF) {
+		cout << "This files is not encrypted!" << endl;
+		return false;
 	}
+
+	if (mesh.product_id == 0xFFFF)
+		o3d_has_product_id = false;	
+	else
+		o3d_has_product_id = true;
+		
+	if (o3d_has_product_id)
+		product_id_salt = mesh.product_id + file_version - 4;
+	else
+		product_id_salt = mesh.product_id;
+	
 
 	if (o3d_has_product_id) {
 		if (mesh.has_encryption)
@@ -105,14 +102,14 @@ bool decodeFile(std::string&& filename) {
 		o3d_file.read((char*)(&data_type), 1);
 		uint32_t l_buff = 0;
 
-		if (file_version >= 3)
-			o3d_file.read((char*)(&data_count), 4);
-		else
-			o3d_file.read((char*)(&data_count), 2);
-
 		switch (data_type)
 		{
 			case O3D_DATA_TYPES::VERTEX:
+				if (file_version >= 3)
+					o3d_file.read((char*)(&data_count), 4);
+				else
+					o3d_file.read((char*)(&data_count), 2);
+
 				l_buff = product_id_salt + 0x02;
 				if (l_buff > 0xFFFF) {
 					cout << "OUT OF RANGE VERTICES" << endl;
@@ -131,7 +128,17 @@ bool decodeFile(std::string&& filename) {
 				break;
 
 			case O3D_DATA_TYPES::MATERIALS:
-				o3d_file.seekg(data_count * sizeof(O3D_Materials), ios::cur);
+				o3d_file.read((char*)(&data_count), 2);
+
+				for (size_t i = 0; i < data_count; ++i) {
+					o3d_file.seekg(sizeof(D3DCOLORVALUE) + sizeof(D3DCOLOR_XRGB) + sizeof(D3DCOLOR_XRGB) + 
+						sizeof(float), ios::cur);
+
+					uint8_t l_name_length = 0;
+					o3d_file.read((char*)(&l_name_length), 1);
+					o3d_file.seekg(l_name_length, ios::cur);
+				}
+				
 				break;
 
 			case O3D_DATA_TYPES::TRIS:
@@ -143,7 +150,19 @@ bool decodeFile(std::string&& filename) {
 				break;
 
 			case O3D_DATA_TYPES::BONES:
-				o3d_file.seekg(data_count * sizeof(O3D_Bones), ios::cur);
+				o3d_file.read((char*)(&data_count), 2);
+
+				for (size_t i = 0; i < data_count; ++i) {
+					//skip name length & name
+					uint8_t name_length = 0;
+					o3d_file.read((char*)(&name_length), 1);
+					o3d_file.seekg(name_length, ios::cur);
+
+					//skip O3D_Weights
+					uint16_t weights_count = 0;
+					o3d_file.read((char*)(&weights_count), 2);
+					o3d_file.seekg(weights_count * sizeof(O3D_Weights), ios::cur);
+				}
 				break;
 
 			case O3D_DATA_TYPES::TRANSFORM:

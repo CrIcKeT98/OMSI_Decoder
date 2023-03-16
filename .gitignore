@@ -8,6 +8,7 @@ qtmoc/*
 projects/*
 support/source_sdk_2013_path.txt
 Debug/*
+Release/*
 
 ## OS-specific
 Thumbs.db

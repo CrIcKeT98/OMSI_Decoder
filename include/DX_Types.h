@@ -8,6 +8,12 @@ typedef struct _D3DCOLORVALUE {
 	float a;
 } D3DCOLORVALUE;
 
+typedef struct _D3DCOLOR_XRGB {
+	float r;
+	float g;
+	float b;
+} D3DCOLOR_XRGB;
+
 typedef struct _D3DMATRIX {
 	union {
 		struct {

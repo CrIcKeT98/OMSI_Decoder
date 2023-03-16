@@ -1,8 +1,7 @@
 #pragma once
-#pragma pack(1)
 #include <utility>
 
-#include <DX_Types.h>
+#include "DX_Types.h"
 
 struct Vector2D {
 	Vector2D() : x(0), y(0) {};
@@ -11,6 +10,7 @@ struct Vector2D {
 	float x;
 	float y;
 };
+
 
 struct Vector3D {
 	Vector3D() : x(0), y(0), z(0) {};
@@ -38,14 +38,23 @@ struct O3D_Vertex {
 	Vector2D uv;
 };
 
+struct O3D_Transform {
+	Vector4D x;
+	Vector4D y;
+	Vector4D z;
 
+	Vector4D pos;
+};
+
+#pragma pack(push, 1)
 struct O3D_Materials {
 	D3DCOLORVALUE diffuse;
-	D3DCOLORVALUE specular;
-	D3DCOLORVALUE emissive;
+	D3DCOLOR_XRGB specular;
+	D3DCOLOR_XRGB emissive;
 
-	std::uint32_t power;
-	std::uintptr_t* texture; //check type
+	float power;
+	std::uint8_t name_length;
+	std::ptrdiff_t* name;
 };
 
 struct O3D_Tris_Long {
@@ -62,32 +71,34 @@ struct O3D_Tris_Short {
 	uint16_t id;
 };
 
-struct O3D_Bones {
+struct O3D_Faces_Short {
+	uint16_t a;
+	uint16_t b;
+	uint16_t c;
 
+	uint16_t material_id;
 };
 
-struct O3D_Transform {
-	Vector4D x;
-	Vector4D y;
-	Vector4D z;
-
-	Vector4D pos;
-};
-
-struct O3D_Faces {
-	std::uint16_t a;
-	std::uint16_t b;
-	std::uint16_t c;
+struct O3D_Faces_Long{
+	std::uint32_t a;
+	std::uint32_t b;
+	std::uint32_t c;
 
 	std::uint16_t material_id;
 };
 
-//check all types
 struct O3D_Weights {
-	std::uintptr_t* name;
-	std::uintptr_t* vertices;
-	std::uintptr_t* weights;
+	std::uint16_t index;
+	float weight;
 };
+
+struct O3D_Bones {
+	std::uint8_t name_length;
+	std::uintptr_t* name;
+	std::uint16_t weights_count;
+	O3D_Weights* weights; //array
+};
+#pragma pack(pop)
 
 struct O3D_Mesh {
 	std::uint8_t unk[4];
@@ -97,10 +108,11 @@ struct O3D_Mesh {
 	
 	std::uint32_t has_long_tris;
 	O3D_Vertex* vertices;
-	O3D_Faces* faces;
+	O3D_Faces_Short* short_faces;
+	O3D_Faces_Long* long_faces;
 	O3D_Materials* materials;
 	D3DMATRIX matrix;
-	O3D_Weights* weights;
+	O3D_Bones* weights;
 
 	std::uint32_t has_encryption;
 	std::int32_t product_id;
