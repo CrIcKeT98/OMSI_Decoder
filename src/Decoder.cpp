@@ -100,7 +100,6 @@ bool decodeFile(std::string& filename) {
 
 	while (l_flag && !o3d_file.eof()) {
 		o3d_file.read((char*)(&data_type), 1);
-		uint32_t l_buff = 0;
 
 		switch (data_type)
 		{
@@ -109,14 +108,6 @@ bool decodeFile(std::string& filename) {
 					o3d_file.read((char*)(&data_count), 4);
 				else
 					o3d_file.read((char*)(&data_count), 2);
-
-				l_buff = product_id_salt + 0x02;
-				if (l_buff > 0xFFFF) {
-					cout << "OUT OF RANGE VERTICES" << endl;
-					return false;
-				}
-
-				product_id_salt = l_buff;
 
 				if (data_count < 0) {
 					cout << "UNCORRECT NUM OF VERTICES!" << endl;
